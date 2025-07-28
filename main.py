@@ -24,7 +24,7 @@ class WebCrawler:
             if response.status_code == 200:
                 return response.text
             else:
-                return response.content 
+                return None
         except requests.RequestException:
             return None
 
@@ -33,8 +33,9 @@ class WebCrawler:
         filename = parsed.netloc.replace('.', '_') + parsed.path.replace('/', '_')
         if not filename:
             filename = 'index'
-        filename = filename[:100]  # limit filename length
-        with open(f'pages/{filename}.html', 'w', encoding='ascii') as f:  
+        filename = ''.join(c for c in filename if c.isalnum() or c in '_-').rstrip('_.')
+        filename = filename[:100] or 'page'  # limit filename length
+        with open(f'pages/{filename}.html', 'w', encoding='utf-8') as f:  
             f.write(content)
 
     def crawl_page(self):
@@ -44,11 +45,12 @@ class WebCrawler:
             except queue.Empty:
                 return
 
-            if url in self.visited or self.page_count >= self.max_pages:
-                self.q.task_done()
-                continue
-            self.visited.add(url)
-            self.page_count += 1
+            with self.lock:
+                if url in self.visited or self.page_count >= self.max_pages:
+                    self.q.task_done()
+                    continue
+                self.visited.add(url)
+                self.page_count += 1
 
             print(f"Crawling: {url}")
             content = self.fetch_page(url)
@@ -76,6 +78,6 @@ class WebCrawler:
             t.join()
 
 if __name__ == "__main__":
-    start_url = " https://en.wikipedia.org/wiki/Artificial_intelligence#Deep_learning"
+    start_url = "https://en.wikipedia.org/wiki/Artificial_intelligence#Deep_learning"
     crawler = WebCrawler(start_url, max_threads=5, max_pages=20)
     crawler.start()
