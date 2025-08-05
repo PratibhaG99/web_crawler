@@ -18,6 +18,9 @@ class WebCrawler:
         if not os.path.exists('pages'):
             os.makedirs('pages')
 
+    def dummyfunction(self):
+        print("Dummy function")
+
     def fetch_page(self, url):
         try:
             response = requests.get(url, timeout=5)
