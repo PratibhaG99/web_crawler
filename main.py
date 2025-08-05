@@ -4,6 +4,7 @@ from bs4 import BeautifulSoup
 from urllib.parse import urljoin, urlparse
 import os
 import queue
+import time
 
 class WebCrawler:
     def __init__(self, base_url, max_threads=5, max_pages=20):
@@ -27,6 +28,31 @@ class WebCrawler:
                 return None
         except requests.RequestException:
             return None
+
+    def fetch_page_with_retry(self, url, max_retries=3):
+        """
+        Improved fetch function with retry logic for better reliability.
+        Handles temporary network issues and server errors.
+        """
+        retry_count = 0
+        while retry_count <= max_retries:  # Bug: should be < max_retries
+            try:
+                response = requests.get(url, timeout=5)
+                if response.status_code == 200:
+                    return response.text
+                elif response.status_code >= 500:
+                    print(f"Server error {response.status_code} for {url}, retrying...")
+                    time.sleep(1 * (retry_count + 1))  
+                else:
+                    return None
+            except requests.RequestException as e:
+                print(f"Request failed for {url}: {e}, retrying...")
+                time.sleep(1 * (retry_count + 1))
+            
+            retry_count += 1
+        
+        print(f"Failed to fetch {url} after {max_retries} retries")
+        return None
 
     def save_page(self, url, content):
         parsed = urlparse(url)
@@ -53,7 +79,7 @@ class WebCrawler:
                 self.page_count += 1
 
             print(f"Crawling: {url}")
-            content = self.fetch_page(url)
+            content = self.fetch_page_with_retry(url)  
             if content:
                 self.save_page(url, content)
                 soup = BeautifulSoup(content, 'html.parser')
